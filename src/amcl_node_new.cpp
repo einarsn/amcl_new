@@ -331,13 +331,17 @@ AmclNode::AmclNode() :
   private_nh_.param("laser_lambda_short", lambda_short_, 0.1);
   private_nh_.param("laser_likelihood_max_dist", laser_likelihood_max_dist_, 2.0);
   std::string tmp_model_type;
-  private_nh_.param("laser_model_type", tmp_model_type, std::string("likelihood_field"));
+  private_nh_.param("laser_model_type", tmp_model_type, std::string("likelihood_field_prob"));
+
   if(tmp_model_type == "beam")
     laser_model_type_ = LASER_MODEL_BEAM;
-  else if(tmp_model_type == "likelihood_field")
+  else if(tmp_model_type == "likelihood_field"){
     laser_model_type_ = LASER_MODEL_LIKELIHOOD_FIELD;
+    ROS_INFO("rangt");
+  }
   else if(tmp_model_type == "likelihood_field_prob"){
     laser_model_type_ = LASER_MODEL_LIKELIHOOD_FIELD_PROB;
+    ROS_INFO("rett");
   }
   else
   {
@@ -466,8 +470,9 @@ void AmclNode::reconfigureCB(AMCLConfig &config, uint32_t level)
 
   if(config.laser_model_type == "beam")
     laser_model_type_ = LASER_MODEL_BEAM;
-  else if(config.laser_model_type == "likelihood_field")
+  else if(config.laser_model_type == "likelihood_field"){
     laser_model_type_ = LASER_MODEL_LIKELIHOOD_FIELD;
+  }
   else if(config.laser_model_type == "likelihood_field_prob")
     laser_model_type_ = LASER_MODEL_LIKELIHOOD_FIELD_PROB;
 
@@ -734,7 +739,7 @@ AmclNode::handleMapMessage(const nav_msgs::OccupancyGrid& msg)
 					laser_likelihood_max_dist_, 
 					do_beamskip_, beam_skip_distance_, 
 					beam_skip_threshold_, beam_skip_error_threshold_);
-    ROS_INFO("Done initializing likelihood field model.");
+    ROS_INFO("Done initializing likelihood field model with probabilities.");
   }
   else
   {
