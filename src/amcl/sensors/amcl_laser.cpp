@@ -231,6 +231,7 @@ double AMCLLaser::LikelihoodFieldModel(AMCLLaserData *data, pf_sample_set_t* set
         step = 1;
     if(set->converged)
     {
+        //ROS_INFO("IS converged");
         //ROS_INFO("NUMBER OF PARTICLES: %d", set->sample_count);
         //ROS_INFO("START check");
         int counterxx;
@@ -275,16 +276,17 @@ double AMCLLaser::LikelihoodFieldModel(AMCLLaserData *data, pf_sample_set_t* set
             {
                 use_beam_idx.push_back(i);
                 //ROS_INFO("Use beam: %d", i);
-                data->ranges[i][0] = data->range_max;
             }
+            else
+                data->ranges[i][0] = data->range_max;
         }
         int number_of_beams = use_beam_idx.size();
-        //ROS_INFO("Number of beams to use: %d", number_of_beams);
+        ROS_INFO("Number of beams to use: %d", number_of_beams);
         //ROS_INFO("STOP check");
     }
     else
     {
-        ROS_INFO("Has not converged");
+        ROS_INFO("NOT converged");
         for (i = 0; i < data->range_count; i += step)
         {
             use_beam_idx.push_back(i);
@@ -310,27 +312,29 @@ double AMCLLaser::LikelihoodFieldModel(AMCLLaserData *data, pf_sample_set_t* set
         if(step < 1)
             step = 1;
         //ROS_INFO("STEP SIZE: %d", step);
-        for (i = 0; i < data->range_count; i += step)
-        //for (int k = 0; i < use_beam_idx.size(); k++)
+        //for (i = 0; i < data->range_count; i += step)
+        for (int k = 0; k < use_beam_idx.size(); k++)
         {
-            //i = use_beam_idx.at(k);
+            i = use_beam_idx.at(k);
             obs_range = data->ranges[i][0];
             obs_bearing = data->ranges[i][1];
 
             // This model ignores max range readings
             if(obs_range >= data->range_max)
             {
-
                 continue;
             }
             // Check for NaN
             if(obs_range != obs_range)
             {
-
                 continue;
             }
             pz = 0.0;
-
+            // using std::find with vector and iterator:
+            std::vector<int>::iterator it;
+            it = find (use_beam_idx.begin(),use_beam_idx.end(),i);
+            if (it == use_beam_idx.end())
+              std::cout << "Element not found in myvector\n";
             // Compute the endpoint of the beam
             hit.v[0] = pose.v[0] + obs_range * cos(pose.v[2] + obs_bearing);
             hit.v[1] = pose.v[1] + obs_range * sin(pose.v[2] + obs_bearing);
@@ -346,12 +350,7 @@ double AMCLLaser::LikelihoodFieldModel(AMCLLaserData *data, pf_sample_set_t* set
                 z = self->map->max_occ_dist;
             else
                 z = self->map->cells[MAP_INDEX(self->map,mi,mj)].occ_dist;
-            //ROS_INFO("z: %f", z);
-//            if(z > 0.5)
-//            {
-//                //ROS_INFO("Beam too far away from an obstacle");
-//                continue;
-//            }
+
             // Gaussian model
             // NOTE: this should have a normalization of 1/(sqrt(2pi)*sigma)
             pz += self->z_hit * exp(-(z * z) / z_hit_denom);
