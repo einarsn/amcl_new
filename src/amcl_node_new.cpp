@@ -33,8 +33,8 @@
 
 #include "map/map.h"
 #include "pf/pf.h"
-#include "sensors/amcl_odom.h"
-#include "sensors/amcl_laser.h"
+#include "sensors_new/amcl_odom.h"
+#include "sensors_new/amcl_laser_new.h"
 
 #include "ros/assert.h"
 
@@ -246,7 +246,7 @@ class AmclNode
 
 std::vector<std::pair<int,int> > AmclNode::free_space_indices;
 
-#define USAGE "USAGE: amcl"
+#define USAGE "USAGE: amcl_new"
 
 boost::shared_ptr<AmclNode> amcl_node_ptr;
 

@@ -33,7 +33,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <ros/ros.h>
-#include "amcl_laser.h"
+#include "amcl_laser_new.h"
 
 using namespace amcl;
 
@@ -225,7 +225,7 @@ double AMCLLaser::LikelihoodFieldModel(AMCLLaserData *data, pf_sample_set_t* set
     self = (AMCLLaser*) data->sensor;
     std::vector<int> use_beam_idx;
     total_weight = 0.0;
-    step = (data->range_count - 1) / (self->max_beams - 1);
+    step = (data->range_count - 1) / (self->max_beams);
     // Step size must be at least 1
     if(step < 1)
         step = 1;
@@ -234,55 +234,78 @@ double AMCLLaser::LikelihoodFieldModel(AMCLLaserData *data, pf_sample_set_t* set
         //ROS_INFO("IS converged");
         //ROS_INFO("NUMBER OF PARTICLES: %d", set->sample_count);
         //ROS_INFO("START check");
-        int counterxx;
-        for (i = 0; i < data->range_count; i += step)
+        int iter_idx = 0;
+        while(use_beam_idx.size() < self->max_beams && iter_idx <= step)
         {
-            counterxx = 0;
-            for(j = 0; j < set->sample_count; j++)
+            ROS_INFO("IN WHILE");
+            int counterxx;
+            std::vector<int> available_beams;
+            iter_idx++;
+            for (i = 0+iter_idx; i < data->range_count; i += step)
             {
-                sample = set->samples + j;
-                pose = sample->pose;
-                obs_range = data->ranges[i][0];
-                obs_bearing = data->ranges[i][1];
-                if(obs_range >= data->range_max)
+                counterxx = 0;
+                for(j = 0; j < set->sample_count; j++)
                 {
-                    continue;
+                    sample = set->samples + j;
+                    pose = sample->pose;
+                    obs_range = data->ranges[i][0];
+                    obs_bearing = data->ranges[i][1];
+                    if(obs_range >= data->range_max)
+                    {
+                        continue;
+                    }
+                    // Check for NaN
+                    if(obs_range != obs_range)
+                    {
+                        continue;
+                    }
+                    hit.v[0] = pose.v[0] + obs_range * cos(pose.v[2] + obs_bearing);
+                    hit.v[1] = pose.v[1] + obs_range * sin(pose.v[2] + obs_bearing);
+
+                    int mi, mj;
+                    mi = MAP_GXWX(self->map, hit.v[0]);
+                    mj = MAP_GYWY(self->map, hit.v[1]);
+
+                    // Part 1: Get distance from the hit to closest obstacle.
+                    // Off-map penalized as max distance
+                    if(!MAP_VALID(self->map, mi, mj))
+                        z = self->map->max_occ_dist;
+                    else
+                        z = self->map->cells[MAP_INDEX(self->map,mi,mj)].occ_dist;
+                    if(z < 0.4)
+                        counterxx++;
                 }
-                // Check for NaN
-                if(obs_range != obs_range)
+                //ROS_INFO("count: %d", counterxx);
+                double prump = double(counterxx) / double(set->sample_count);
+                //ROS_INFO("PRUMP: %f", prump);
+                if(prump > 0.5)
                 {
-                    continue;
+                    available_beams.push_back(i);
+                    //ROS_INFO("Use beam: %d", i);
                 }
-                hit.v[0] = pose.v[0] + obs_range * cos(pose.v[2] + obs_bearing);
-                hit.v[1] = pose.v[1] + obs_range * sin(pose.v[2] + obs_bearing);
-
-                int mi, mj;
-                mi = MAP_GXWX(self->map, hit.v[0]);
-                mj = MAP_GYWY(self->map, hit.v[1]);
-
-                // Part 1: Get distance from the hit to closest obstacle.
-                // Off-map penalized as max distance
-                if(!MAP_VALID(self->map, mi, mj))
-                    z = self->map->max_occ_dist;
                 else
-                    z = self->map->cells[MAP_INDEX(self->map,mi,mj)].occ_dist;
-                if(z < 0.2)
-                    counterxx++;
+                    data->ranges[i][0] = data->range_max;
             }
-            //ROS_INFO("count: %d", counterxx);
-            double prump = double(counterxx) / double(set->sample_count);
-            //ROS_INFO("PRUMP: %f", prump);
-            if(prump > 0.5)
-            {
-                use_beam_idx.push_back(i);
-                //ROS_INFO("Use beam: %d", i);
-            }
+            int n=available_beams.size();
+            ROS_INFO("number of useable: %d", n);
+            if(use_beam_idx.empty())
+                use_beam_idx = available_beams;
             else
-                data->ranges[i][0] = data->range_max;
+            {
+                int missing = self->max_beams - use_beam_idx.size();
+                int add_step = available_beams.size() / missing;
+                for(int i = 0; i < available_beams.size(); i+=add_step)
+                {
+                    use_beam_idx.push_back(available_beams.at(i));
+                }
+            }
+            //ROS_INFO("STOP check");
         }
         int number_of_beams = use_beam_idx.size();
+        ROS_INFO("Max beams: %d", self->max_beams);
         ROS_INFO("Number of beams to use: %d", number_of_beams);
-        //ROS_INFO("STOP check");
+        int missing = self->max_beams - use_beam_idx.size();
+        ROS_INFO("Number of missing beams: %d", missing);
     }
     else
     {
@@ -292,6 +315,8 @@ double AMCLLaser::LikelihoodFieldModel(AMCLLaserData *data, pf_sample_set_t* set
             use_beam_idx.push_back(i);
         }
     }
+
+
     // Compute the sample weights
     for (j = 0; j < set->sample_count; j++)
     {

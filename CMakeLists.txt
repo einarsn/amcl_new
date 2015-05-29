@@ -21,10 +21,10 @@ catkin_package(
         dynamic_reconfigure
         tf
   INCLUDE_DIRS include
-  LIBRARIES amcl_sensors amcl_map amcl_pf
+  LIBRARIES amcl_sensors_new amcl_map amcl_pf
 )
 
-include_directories(include/amcl include/amcl/map include/amcl/sensors include/amcl/pf)
+include_directories(include/amcl include/amcl/map include/amcl/sensors_new include/amcl/pf)
 include_directories(${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 
 add_library(amcl_pf
@@ -42,11 +42,11 @@ add_library(amcl_map
                     src/amcl/map/map_store.c
                     src/amcl/map/map_draw.c)
 
-add_library(amcl_sensors
-                    src/amcl/sensors/amcl_sensor.cpp
-                    src/amcl/sensors/amcl_odom.cpp
-                    src/amcl/sensors/amcl_laser.cpp)
-target_link_libraries(amcl_sensors amcl_map amcl_pf)
+add_library(amcl_sensors_new
+                    src/amcl/sensors_new/amcl_sensor.cpp
+                    src/amcl/sensors_new/amcl_odom.cpp
+                    src/amcl/sensors_new/amcl_laser_new.cpp)
+target_link_libraries(amcl_sensors_new amcl_map amcl_pf)
 
 
 add_executable(amcl_new
@@ -54,13 +54,13 @@ add_executable(amcl_new
 add_dependencies(amcl_new amcl_gencfg)
 
 target_link_libraries(amcl_new
-    amcl_sensors amcl_map amcl_pf
+    amcl_sensors_new amcl_map amcl_pf
     ${Boost_LIBRARIES}
     ${catkin_LIBRARIES}
 )
 
 install( TARGETS
-    amcl_new amcl_sensors amcl_map amcl_pf
+    amcl_new amcl_sensors_new amcl_map amcl_pf
     ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
